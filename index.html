@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GLB Model Comparison Tool</title>
+    <link rel="stylesheet" href="assets/css/styles.css">
+    <!-- Load Three.js from CDN -->
+    <script src="./three.js/build/three.min.js"></script>
+    <script src="./three.js/examples/js/loaders/GLTFLoader.js"></script>
+    <script src="./three.js/examples/js/loaders/RGBELoader.js"></script>
+    <script src="./three.js/examples/js/controls/OrbitControls.js"></script>
+    <script src="main.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/pixelmatch@5.3.0/dist/pixelmatch.min.js"></script>
+    <!-- Material Icons -->
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+</head>
+<body>
+    <header>
+        <h1>GLB Model Comparison Tool</h1>
+        <p>Compare 3D models with material fidelity analysis in neutral HDR lighting</p>
+    </header>
+
+    <main>
+        <div class="model-containers">
+            <div class="model-container">
+                <h2>Model 1</h2>
+                <div class="drop-zone" id="drop-zone-1">
+                    <div class="drop-message">
+                        <p>Drop GLB File Here</p>
+                        <p>or</p>
+                        <label for="model1-file" class="file-input-label">
+                            <span class="material-icons">file_upload</span> Select File
+                        </label>
+                        <input type="file" id="model1-file" accept=".glb" class="file-input">
+                    </div>
+                    <div id="viewer-1" class="viewer"></div>
+                </div>
+                <div class="model-info">
+                    <h3>Model Information</h3>
+                    <div id="model1-stats" class="stats-container">
+                        <div class="no-results">
+                            <span class="material-icons">info</span>
+                            <p>Load a model to view statistics</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="model-container">
+                <h2>Model 2</h2>
+                <div class="drop-zone" id="drop-zone-2">
+                    <div class="drop-message">
+                        <p>Drop GLB File Here</p>
+                        <p>or</p>
+                        <label for="model2-file" class="file-input-label">
+                            <span class="material-icons">file_upload</span> Select File
+                        </label>
+                        <input type="file" id="model2-file" accept=".glb" class="file-input">
+                    </div>
+                    <div id="viewer-2" class="viewer"></div>
+                </div>
+                <div class="model-info">
+                    <h3>Model Information</h3>
+                    <div id="model2-stats" class="stats-container">
+                        <div class="no-results">
+                            <span class="material-icons">info</span>
+                            <p>Load a model to view statistics</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="comparison-controls">
+            <div class="controls-header">
+                <h3>Comparison Settings</h3>
+            </div>
+            <div class="controls-content">
+                <div class="view-settings">
+                    <div class="setting">
+                        <label>
+                            <input type="checkbox" id="auto-rotate" checked>
+                            <span>Auto-rotate models</span>
+                        </label>
+                    </div>
+                    <div class="setting">
+                        <label>
+                            <input type="checkbox" id="same-lighting" checked>
+                            <span>Use neutral HDR lighting</span>
+                        </label>
+                    </div>
+                    <div class="setting">
+                        <label>
+                            <span>Threshold:</span>
+                            <input type="range" id="threshold" min="0" max="1" step="0.01" value="0.1">
+                            <span id="threshold-value">0.1</span>
+                        </label>
+                    </div>
+                </div>
+                <div class="buttons-container">
+                    <button id="compare-btn" class="btn btn-primary" disabled>
+                        <span id="compare-btn-text">Compare Models</span>
+                        <span id="compare-loader" class="loading-indicator" style="display: none;"></span>
+                    </button>
+                    <button id="save-comparison" class="btn btn-secondary" disabled>
+                        <span class="material-icons">save</span> Save Report
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="comparison-container">
+            <div class="comparison-header">
+                <h2>Comparison Results</h2>
+            </div>
+            <div class="comparison-content">
+                <div class="comparison-results">
+                    <div class="comparison-stats">
+                        <div id="comparison-stats">
+                            <div class="no-results">
+                                <span class="material-icons">compare</span>
+                                <p>Load two models and click "Compare Models" to see results</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="comparison-viewer">
+                        <div class="diff-view">
+                            <canvas id="diff-canvas"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <p>GLB Model Comparison Tool - Renders models in neutral.hdr lighting for material fidelity testing</p>
+        <p>Use the orbit controls to adjust view: Left-click + drag to rotate, Scroll to zoom, Right-click + drag to pan</p>
+    </footer>
+
+    <!-- Load application scripts -->
+    <script src="js/utils/dragAndDrop.js"></script>
+    <script src="js/utils/fileUtils.js"></script>
+    <script src="js/utils/uiUtils.js"></script>
+    <script src="js/ModelViewer.js"></script>
+    <script src="js/ModelComparator.js"></script>
+    <script src="js/main.js"></script>
+    
+    <script>
+        // Additional UX scripts for better interaction
+        document.addEventListener('DOMContentLoaded', function() {
+            // Loading indicator for compare button
+            const compareBtn = document.getElementById('compare-btn');
+            const compareBtnText = document.getElementById('compare-btn-text');
+            const compareLoader = document.getElementById('compare-loader');
+            
+            if (compareBtn) {
+                const originalOnClick = compareBtn.onclick;
+                
+                compareBtn.onclick = function(e) {
+                    // Show loading state
+                    if (!compareBtn.disabled) {
+                        compareBtnText.textContent = 'Comparing...';
+                        compareLoader.style.display = 'inline-block';
+                        compareBtn.disabled = true;
+                        
+                        // Call original handler
+                        if (originalOnClick) {
+                            originalOnClick.call(this, e);
+                        }
+                        
+                        // Reset button after comparison (in case the original handler doesn't)
+                        setTimeout(() => {
+                            compareBtnText.textContent = 'Compare Models';
+                            compareLoader.style.display = 'none';
+                            
+                            // Only re-enable if both models are loaded
+                            const viewer1 = document.getElementById('viewer-1');
+                            const viewer2 = document.getElementById('viewer-2');
+                            
+                            if (viewer1 && viewer2 && 
+                                viewer1.parentElement.classList.contains('has-model') && 
+                                viewer2.parentElement.classList.contains('has-model')) {
+                                compareBtn.disabled = false;
+                            }
+                        }, 2000);
+                    }
+                };
+            }
+            
+            // Update threshold display
+            const thresholdSlider = document.getElementById('threshold');
+            const thresholdValue = document.getElementById('threshold-value');
+            
+            if (thresholdSlider && thresholdValue) {
+                thresholdSlider.addEventListener('input', () => {
+                    thresholdValue.textContent = thresholdSlider.value;
+                });
+            }
+            
+            // Log initialization
+            console.log('Enhanced UI initialized');
+        });
+    </script>
+</body>
+</html>
