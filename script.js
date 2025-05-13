@@ -373,7 +373,7 @@ renderer.setPixelRatio(window.devicePixelRatio);
 // Enable physically correct lighting and tone mapping (important for material fidelity)
 renderer.physicallyCorrectLights = true;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.0;
+renderer.toneMappingExposure = 2.0;
 renderer.outputEncoding = THREE.sRGBEncoding;
 
 // Add orbit controls for interactive viewing
