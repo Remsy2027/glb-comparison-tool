@@ -1,134 +1,71 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>GLB Comparison Tool</title>
-  <link rel="stylesheet" href="styles.css">
-  <!-- Load required libraries from CDN -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/DRACOLoader.js"></script>
-  <!-- Load additional required libraries -->
-  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/RGBELoader.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/pmrem/PMREMGenerator.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
-  <!-- Load pixelmatch inline to avoid CDN issues -->
-  <script>
-    // Inline pixelmatch implementation for reliability
-    window.pixelmatch = function(img1, img2, output, width, height, options) {
-      options = options || {};
-      const threshold = options.threshold === undefined ? 0.1 : options.threshold;
-      const includeAA = !!options.includeAA;
-      const alpha = options.alpha === undefined ? 0.1 : options.alpha;
-      const diffColor = options.diffColor || [255, 0, 0];
-      let count = 0;
-      
-      // Compare each pixel
-      for (let y = 0; y < height; y++) {
-        for (let x = 0; x < width; x++) {
-          const i = (y * width + x) * 4;
-          
-          // Get RGB values (ignore alpha)
-          const r1 = img1[i];
-          const g1 = img1[i + 1];
-          const b1 = img1[i + 2];
-          
-          const r2 = img2[i];
-          const g2 = img2[i + 1];
-          const b2 = img2[i + 2];
-          
-          // Simple comparison - this is simplified from the real pixelmatch algorithm
-          const diff = Math.abs(r1 - r2) + Math.abs(g1 - g2) + Math.abs(b1 - b2);
-          const maxDiff = 255 * 3;
-          
-          if (diff / maxDiff > threshold) {
-            // Mark as different
-            output[i] = diffColor[0];
-            output[i + 1] = diffColor[1];
-            output[i + 2] = diffColor[2];
-            output[i + 3] = 255;
-            count++;
-          } else {
-            // Use a mix of the original pixel and white (based on alpha)
-            output[i] = 255 * (1 - alpha) + r1 * alpha;
-            output[i + 1] = 255 * (1 - alpha) + g1 * alpha;
-            output[i + 2] = 255 * (1 - alpha) + b1 * alpha;
-            output[i + 3] = 255;
-          }
-        }
-      }
-      
-      return count;
-    };
-  </script>
-</head>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      font-family: 'Inter', sans-serif;
+    }
+    
+    #root {
+      height: 100%;
+    }
+    
+    /* Loading screen */
+    .initial-loading {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: #f8fafc;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Inter', sans-serif;
+    }
+    
+    .loading-logo {
+      font-size: 2rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, #6366f1, #e11d48);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 1rem;
+    }
+    
+    .loading-spinner {
+      width: 40px;
+      height: 40px;
+      border: 4px solid #e5e7eb;
+      border-top: 4px solid #6366f1;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
 </head>
 <body>
-  <div class="container">
-    <h1>GLB Comparison Tool</h1>
-    
-    <div class="upload-section">
-      <div class="model-upload">
-        <h2>Original Model</h2>
-        <input type="file" id="original-file-input" accept=".glb" class="file-input">
-        <div class="canvas-container">
-          <canvas id="original-canvas"></canvas>
-        </div>
-        <div id="original-stats" class="stats-container"></div>
-      </div>
-      
-      <div class="model-upload">
-        <h2>Comparison Model</h2>
-        <input type="file" id="comparison-file-input" accept=".glb" class="file-input">
-        <div class="canvas-container">
-          <canvas id="comparison-canvas"></canvas>
-        </div>
-        <div id="comparison-stats" class="stats-container"></div>
-      </div>
-    </div>
-    
-    <div class="actions">
-      <button id="compare-button" class="button" disabled>Compare Models</button>
-      <button id="download-report-button" class="button" disabled>Download Report</button>
-    </div>
-    
-    <div id="results-container" class="results-container hidden">
-      <h2>Comparison Results</h2>
-      
-      <div class="comparison-images">
-        <div class="image-box">
-          <h3>Original Model</h3>
-          <img id="original-image" alt="Original Model Snapshot">
-        </div>
-        
-        <div class="image-box">
-          <h3>Comparison Model</h3>
-          <img id="comparison-image" alt="Comparison Model Snapshot">
-        </div>
-        
-        <div class="image-box">
-          <h3>Difference Visualization</h3>
-          <img id="diff-image" alt="Difference Visualization">
-        </div>
-      </div>
-      
-      <div class="results-summary">
-        <h3>Summary</h3>
-        <div id="diff-percentage" class="diff-percentage"></div>
-        <p id="summary-text" class="summary-text"></p>
-        <div id="camera-view-info" class="camera-view-info">
-          <small>* Both models are compared using identical camera position and HDR lighting.</small>
-        </div>
-      </div>
-    </div>
-    
-    <!-- Hidden canvases for pixelmatch processing -->
-    <div class="hidden">
-      <canvas id="diff-canvas"></canvas>
+  <div id="root">
+    <div class="initial-loading">
+      <div class="loading-logo">GLB Comparison Tool</div>
+      <div class="loading-spinner"></div>
     </div>
   </div>
-  
-  <script src="script.js"></script>
+  <script type="module" src="/src/index.jsx"></script>
 </body>
 </html>
