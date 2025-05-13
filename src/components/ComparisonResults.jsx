@@ -34,19 +34,19 @@ const ComparisonResults = ({ results }) => {
       <div className="results-content">
         <div className="comparison-images">
           <div className="image-container">
-            <h3 className="image-label">Original Model</h3>
+            <h3 className="image-label">Model 1</h3>
             <img 
               src={results.originalImage} 
-              alt="Original Model" 
+              alt="Model 1" 
               className="result-image"
             />
           </div>
           
           <div className="image-container">
-            <h3 className="image-label">Comparison Model</h3>
+            <h3 className="image-label">Model 2</h3>
             <img 
               src={results.comparisonImage} 
-              alt="Comparison Model" 
+              alt="Model 2" 
               className="result-image"
             />
           </div>

@@ -147,7 +147,7 @@ function App() {
           <div className="upload-section">
             <div className="model-card">
               <ModelUploader
-                label="Original Model"
+                label="Model 1"
                 onFileSelect={(file) => handleFileUpload(file, 'original')}
                 file={originalFile}
               />
@@ -164,7 +164,7 @@ function App() {
 
             <div className="model-card">
               <ModelUploader
-                label="Comparison Model"
+                label="Model 2"
                 onFileSelect={(file) => handleFileUpload(file, 'comparison')}
                 file={comparisonFile}
               />

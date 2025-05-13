@@ -8,8 +8,8 @@ export class ReportService {
   
     static createReportHTML(originalStats, comparisonStats, comparisonResults) {
       const timestamp = new Date().toLocaleString();
-      const originalFileName = originalStats ? 'Original Model' : 'N/A';
-      const comparisonFileName = comparisonStats ? 'Comparison Model' : 'N/A';
+      const originalFileName = originalStats ? 'Model 1' : 'N/A';
+      const comparisonFileName = comparisonStats ? 'Model 2' : 'N/A';
       
       const formatBytes = (bytes) => {
         if (bytes === 0) return '0 Bytes';
@@ -244,13 +244,13 @@ export class ReportService {
         <h2>Visual Comparison</h2>
         <div class="images-grid">
           <div class="image-container">
-            <h3>Original Model</h3>
-            <img src="${comparisonResults.originalImage}" alt="Original Model">
+            <h3>Model 1</h3>
+            <img src="${comparisonResults.originalImage}" alt="Model 1">
           </div>
           
           <div class="image-container">
-            <h3>Comparison Model</h3>
-            <img src="${comparisonResults.comparisonImage}" alt="Comparison Model">
+            <h3>Model 2</h3>
+            <img src="${comparisonResults.comparisonImage}" alt="Model 2">
           </div>
           
           <div class="image-container">
@@ -264,7 +264,7 @@ export class ReportService {
         <h2>Model Statistics</h2>
         <div class="stats-grid">
           <div class="stat-card">
-            <h3>Original Model</h3>
+            <h3>Model 1</h3>
             <ul class="stat-list">
               <li><span class="stat-label">File Size:</span> <span class="stat-value">${formatBytes(originalStats?.fileSize || 0)}</span></li>
               <li><span class="stat-label">Vertices:</span> <span class="stat-value">${formatNumber(originalStats?.vertexCount || 0)}</span></li>
@@ -282,7 +282,7 @@ export class ReportService {
           </div>
           
           <div class="stat-card">
-            <h3>Comparison Model</h3>
+            <h3>Model 2</h3>
             <ul class="stat-list">
               <li><span class="stat-label">File Size:</span> <span class="stat-value">${formatBytes(comparisonStats?.fileSize || 0)}</span></li>
               <li><span class="stat-label">Vertices:</span> <span class="stat-value">${formatNumber(comparisonStats?.vertexCount || 0)}</span></li>
