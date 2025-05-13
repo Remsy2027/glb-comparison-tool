@@ -11,6 +11,7 @@ import ErrorBoundary from './components/ErrorBoundary';
 import { ThreeService } from './services/ThreeService';
 import { ComparisonService } from './services/ComparisonService';
 import { ReportService } from './services/ReportService';
+import * as THREE from 'three'; // You missed this import, which is necessary
 
 function App() {
   const [originalFile, setOriginalFile] = useState(null);
@@ -103,8 +104,39 @@ function App() {
     });
   };
 
-  const canCompare =
-    originalFile && comparisonFile && originalScene && comparisonScene;
+  const handleResetCamera = () => {
+    if (!originalScene || !comparisonScene) {
+      alert('Please load both models first');
+      return;
+    }
+
+    if (originalViewerRef.current && comparisonViewerRef.current) {
+      const originalCamera = originalViewerRef.current.getCamera();
+      const comparisonCamera = comparisonViewerRef.current.getCamera();
+      const originalControls = originalViewerRef.current.getControls();
+      const comparisonControls = comparisonViewerRef.current.getControls();
+
+      const box = new THREE.Box3().setFromObject(originalScene);
+      const size = box.getSize(new THREE.Vector3());
+      const maxDim = Math.max(size.x, size.y, size.z);
+      const fov = originalCamera.fov * (Math.PI / 180);
+      let cameraZ = Math.abs(maxDim / 2 / Math.tan(fov / 2)) * 1.5;
+      const newPos = new THREE.Vector3(0, 0, cameraZ);
+      const center = box.getCenter(new THREE.Vector3());
+
+      originalCamera.position.copy(newPos);
+      originalCamera.lookAt(center);
+      originalControls.target.copy(center);
+      originalControls.update();
+
+      comparisonCamera.position.copy(newPos);
+      comparisonCamera.lookAt(center);
+      comparisonControls.target.copy(center);
+      comparisonControls.update();
+    }
+  };
+
+  const canCompare = originalFile && comparisonFile && originalScene && comparisonScene;
 
   return (
     <ErrorBoundary>
@@ -153,11 +185,10 @@ function App() {
             onCompare={handleCompare}
             canDownload={!!comparisonResults}
             onDownload={handleDownloadReport}
+            onResetCamera={handleResetCamera} // make sure your ActionButtons component accepts this
           />
 
-          {comparisonResults && (
-            <ComparisonResults results={comparisonResults} />
-          )}
+          {comparisonResults && <ComparisonResults results={comparisonResults} />}
         </div>
 
         {isLoading && <LoadingOverlay message={loadingMessage} />}

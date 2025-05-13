@@ -1,12 +1,16 @@
 import React, { useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
 import { ThreeService } from '../services/ThreeService';
+import { CameraSync } from '../services/CameraSync';
 
-const ModelViewer = forwardRef(({ scene, type }, ref) => {
+const ModelViewer = forwardRef(({ scene, type, syncEnabled = false }, ref) => {
   const canvasRef = useRef();
   const rendererRef = useRef();
   const cameraRef = useRef();
   const controlsRef = useRef();
   const animationFrameRef = useRef();
+  const changeListenerRef = useRef();
+
+  console.log(`ModelViewer ${type} render - syncEnabled:`, syncEnabled); // Debug log
 
   useImperativeHandle(ref, () => ({
     getRenderer: () => rendererRef.current,
@@ -54,11 +58,11 @@ const ModelViewer = forwardRef(({ scene, type }, ref) => {
         
         rendererRef.current = renderer;
 
-        // Create camera
+        // Create camera with standardized settings
         const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
         cameraRef.current = camera;
 
-        // Create controls
+        // Create controls with standardized settings
         const controls = new OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
         controls.dampingFactor = 0.25;
@@ -67,24 +71,65 @@ const ModelViewer = forwardRef(({ scene, type }, ref) => {
         controls.enableZoom = true;
         controlsRef.current = controls;
 
-        // Position camera and model
+        // Standardized model positioning
         const box = new THREE.Box3().setFromObject(scene);
         const center = box.getCenter(new THREE.Vector3());
         const size = box.getSize(new THREE.Vector3());
 
+        // Calculate distance to fit the entire model
         const maxDim = Math.max(size.x, size.y, size.z);
         const fov = camera.fov * (Math.PI / 180);
         let cameraZ = Math.abs(maxDim / 2 / Math.tan(fov / 2));
-        cameraZ *= 1.5;
+        cameraZ *= 1.5; // Add margin
 
-        camera.position.z = cameraZ;
+        // Reset camera to a standardized position
+        camera.position.set(0, 0, cameraZ);
+        camera.lookAt(0, 0, 0);
         
-        scene.position.x = -center.x;
-        scene.position.y = -center.y;
-        scene.position.z = -center.z;
+        // Center the model at origin
+        scene.position.set(-center.x, -center.y, -center.z);
+        
+        // Set controls target to the center
+        controls.target.copy(new THREE.Vector3(0, 0, 0));
+        controls.update();
 
         // Set up environment
         ThreeService.setupEnvironment(renderer, scene, camera);
+
+        // Set up camera synchronization
+        const setupSync = () => {
+          // Remove existing listener if any
+          if (changeListenerRef.current) {
+            controls.removeEventListener('change', changeListenerRef.current);
+          }
+
+          if (syncEnabled) {
+            console.log(`Setting up sync for ${type}`);
+            
+            // Register with camera sync
+            CameraSync.registerViewer({ 
+              getCamera: () => camera, 
+              getControls: () => controls,
+              getRenderer: () => renderer
+            }, type);
+
+            // Create change listener
+            changeListenerRef.current = () => {
+              if (CameraSync.isEnabled && !CameraSync.isSyncing) {
+                console.log(`${type} camera changed, syncing...`);
+                CameraSync.syncAllFromSource(type);
+              }
+            };
+
+            controls.addEventListener('change', changeListenerRef.current);
+          } else {
+            console.log(`Removing sync for ${type}`);
+            // Unregister from camera sync
+            CameraSync.unregisterViewer(type);
+          }
+        };
+
+        setupSync();
 
         // Animation loop
         const animate = () => {
@@ -110,6 +155,12 @@ const ModelViewer = forwardRef(({ scene, type }, ref) => {
           if (animationFrameRef.current) {
             cancelAnimationFrame(animationFrameRef.current);
           }
+          // Clean up sync listener
+          if (changeListenerRef.current) {
+            controls.removeEventListener('change', changeListenerRef.current);
+          }
+          // Unregister from camera sync
+          CameraSync.unregisterViewer(type);
         };
       } catch (error) {
         console.error('Error setting up viewer:', error);
@@ -117,7 +168,7 @@ const ModelViewer = forwardRef(({ scene, type }, ref) => {
     };
 
     setupViewer();
-  }, [scene]);
+  }, [scene, syncEnabled, type]); // Add syncEnabled as dependency
 
   return (
     <div className="model-viewer">
@@ -129,6 +180,18 @@ const ModelViewer = forwardRef(({ scene, type }, ref) => {
             <p>Upload a model to view</p>
           </div>
         )}
+      </div>
+      <div style={{ 
+        position: 'absolute', 
+        top: '10px', 
+        right: '10px', 
+        background: 'rgba(0,0,0,0.7)', 
+        color: 'white', 
+        padding: '5px', 
+        borderRadius: '3px',
+        fontSize: '12px'
+      }}>
+        {type} - {syncEnabled ? 'Sync ON' : 'Sync OFF'}
       </div>
     </div>
   );
