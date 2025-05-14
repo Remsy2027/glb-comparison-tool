@@ -302,7 +302,7 @@ export class ReportService {
       </div>
       
       <div class="metadata">
-        Report generated on ${timestamp} | GLB Comparison Tool v2.0
+        Report generated on ${timestamp} | Material Fidelity Tool v2.0
       </div>
     </div>
   </body>

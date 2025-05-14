@@ -39,7 +39,7 @@ const ModelUploader = ({ label, onFileSelect, file }) => {
     <div className="model-uploader">
       <div className="uploader-header">
         <h2 className="uploader-label">{label}</h2>
-        <span className="uploader-icon">🎯</span>
+        {/* <span className="uploader-icon">🎯</span> */}
       </div>
       
       <div className="file-input-wrapper">

@@ -5,12 +5,8 @@ const ActionButtons = ({
   onCompare, 
   canDownload, 
   onDownload, 
-  onResetCamera,
-  isSyncEnabled,
-  onToggleSync
+  onResetCamera
 }) => {
-  console.log('ActionButtons render - isSyncEnabled:', isSyncEnabled); // Debug log
-  
   return (
     <div className="action-buttons">
       <button 
@@ -20,19 +16,6 @@ const ActionButtons = ({
       >
         <span>🔄</span>
         Reset Cameras
-      </button>
-      
-      <button 
-        className={`btn ${isSyncEnabled ? 'btn-primary' : 'btn-secondary'}`}
-        onClick={onToggleSync}
-        disabled={!canCompare}
-        style={{
-          backgroundColor: isSyncEnabled ? '#3498db' : '#95a5a6',
-          border: isSyncEnabled ? '2px solid #2980b9' : '2px solid #7f8c8d'
-        }}
-      >
-        <span>{isSyncEnabled ? '🔗' : '⛓️‍💥'}</span>
-        {isSyncEnabled ? 'Sync ON' : 'Sync OFF'}
       </button>
       
       <button 

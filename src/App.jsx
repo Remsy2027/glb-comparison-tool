@@ -11,7 +11,6 @@ import ErrorBoundary from './components/ErrorBoundary';
 import { ThreeService } from './services/ThreeService';
 import { ComparisonService } from './services/ComparisonService';
 import { ReportService } from './services/ReportService';
-import * as THREE from 'three'; // You missed this import, which is necessary
 
 function App() {
   const [originalFile, setOriginalFile] = useState(null);
@@ -100,7 +99,7 @@ function App() {
     ReportService.generateReport({
       originalStats,
       comparisonStats,
-      comparisonResults,
+      comparisonResults
     });
   };
 
@@ -116,22 +115,21 @@ function App() {
       const originalControls = originalViewerRef.current.getControls();
       const comparisonControls = comparisonViewerRef.current.getControls();
 
+      // Reset using Model 1 dimensions
       const box = new THREE.Box3().setFromObject(originalScene);
       const size = box.getSize(new THREE.Vector3());
       const maxDim = Math.max(size.x, size.y, size.z);
       const fov = originalCamera.fov * (Math.PI / 180);
       let cameraZ = Math.abs(maxDim / 2 / Math.tan(fov / 2)) * 1.5;
-      const newPos = new THREE.Vector3(0, 0, cameraZ);
-      const center = box.getCenter(new THREE.Vector3());
 
-      originalCamera.position.copy(newPos);
-      originalCamera.lookAt(center);
-      originalControls.target.copy(center);
+      originalCamera.position.set(0, 0, cameraZ);
+      comparisonCamera.position.set(0, 0, cameraZ);
+      originalCamera.lookAt(0, 0, 0);
+      comparisonCamera.lookAt(0, 0, 0);
+
+      originalControls.target.set(0, 0, 0);
+      comparisonControls.target.set(0, 0, 0);
       originalControls.update();
-
-      comparisonCamera.position.copy(newPos);
-      comparisonCamera.lookAt(center);
-      comparisonControls.target.copy(center);
       comparisonControls.update();
     }
   };
@@ -147,7 +145,7 @@ function App() {
           <div className="upload-section">
             <div className="model-card">
               <ModelUploader
-                label="Model 1"
+                label=""
                 onFileSelect={(file) => handleFileUpload(file, 'original')}
                 file={originalFile}
               />
@@ -164,7 +162,7 @@ function App() {
 
             <div className="model-card">
               <ModelUploader
-                label="Model 2"
+                label=""
                 onFileSelect={(file) => handleFileUpload(file, 'comparison')}
                 file={comparisonFile}
               />
@@ -185,10 +183,12 @@ function App() {
             onCompare={handleCompare}
             canDownload={!!comparisonResults}
             onDownload={handleDownloadReport}
-            onResetCamera={handleResetCamera} // make sure your ActionButtons component accepts this
+            onResetCamera={handleResetCamera}
           />
 
-          {comparisonResults && <ComparisonResults results={comparisonResults} />}
+          {comparisonResults && (
+            <ComparisonResults results={comparisonResults} />
+          )}
         </div>
 
         {isLoading && <LoadingOverlay message={loadingMessage} />}

@@ -1,16 +1,19 @@
-import React, { useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
+import React, {
+  useEffect,
+  useRef,
+  forwardRef,
+  useImperativeHandle
+} from 'react';
+import * as THREE from 'three';
 import { ThreeService } from '../services/ThreeService';
 import { CameraSync } from '../services/CameraSync';
 
-const ModelViewer = forwardRef(({ scene, type, syncEnabled = false }, ref) => {
+const ModelViewer = forwardRef(({ scene, type }, ref) => {
   const canvasRef = useRef();
   const rendererRef = useRef();
   const cameraRef = useRef();
   const controlsRef = useRef();
   const animationFrameRef = useRef();
-  const changeListenerRef = useRef();
-
-  console.log(`ModelViewer ${type} render - syncEnabled:`, syncEnabled); // Debug log
 
   useImperativeHandle(ref, () => ({
     getRenderer: () => rendererRef.current,
@@ -29,109 +32,93 @@ const ModelViewer = forwardRef(({ scene, type, syncEnabled = false }, ref) => {
 
     const setupViewer = async () => {
       try {
-        // Dynamic import of OrbitControls
         const { OrbitControls } = await import('three/examples/jsm/controls/OrbitControls.js');
 
-        // Clean up previous renderer
         if (rendererRef.current) {
           rendererRef.current.dispose();
         }
 
-        // Create renderer
+        const canvas = canvasRef.current;
         const renderer = new THREE.WebGLRenderer({
-          canvas: canvasRef.current,
+          canvas,
           antialias: true,
           preserveDrawingBuffer: true,
           alpha: true
         });
-        
-        const canvas = canvasRef.current;
+
         const width = canvas.clientWidth;
         const height = canvas.clientHeight;
-        
+
         renderer.setSize(width, height);
         renderer.setPixelRatio(window.devicePixelRatio);
         renderer.physicallyCorrectLights = true;
         renderer.toneMapping = THREE.ACESFilmicToneMapping;
         renderer.toneMappingExposure = 2.0;
         renderer.outputEncoding = THREE.sRGBEncoding;
-        
+
         rendererRef.current = renderer;
 
-        // Create camera with standardized settings
         const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
         cameraRef.current = camera;
 
-        // Create controls with standardized settings
         const controls = new OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
         controls.dampingFactor = 0.25;
         controls.screenSpacePanning = false;
         controls.maxPolarAngle = Math.PI / 1.5;
         controls.enableZoom = true;
+        controls.enablePan = true;
+        controls.enableRotate = true;
         controlsRef.current = controls;
 
-        // Standardized model positioning
         const box = new THREE.Box3().setFromObject(scene);
         const center = box.getCenter(new THREE.Vector3());
         const size = box.getSize(new THREE.Vector3());
 
-        // Calculate distance to fit the entire model
         const maxDim = Math.max(size.x, size.y, size.z);
         const fov = camera.fov * (Math.PI / 180);
         let cameraZ = Math.abs(maxDim / 2 / Math.tan(fov / 2));
-        cameraZ *= 1.5; // Add margin
+        cameraZ *= 1.5;
 
-        // Reset camera to a standardized position
         camera.position.set(0, 0, cameraZ);
         camera.lookAt(0, 0, 0);
-        
-        // Center the model at origin
         scene.position.set(-center.x, -center.y, -center.z);
-        
-        // Set controls target to the center
         controls.target.copy(new THREE.Vector3(0, 0, 0));
         controls.update();
 
-        // Set up environment
         ThreeService.setupEnvironment(renderer, scene, camera);
 
-        // Set up camera synchronization
-        const setupSync = () => {
-          // Remove existing listener if any
-          if (changeListenerRef.current) {
-            controls.removeEventListener('change', changeListenerRef.current);
-          }
+        CameraSync.registerViewer({
+          getCamera: () => camera,
+          getControls: () => controls,
+          getRenderer: () => renderer
+        }, type);
 
-          if (syncEnabled) {
-            console.log(`Setting up sync for ${type}`);
-            
-            // Register with camera sync
-            CameraSync.registerViewer({ 
-              getCamera: () => camera, 
-              getControls: () => controls,
-              getRenderer: () => renderer
-            }, type);
+        let lastSyncTime = 0;
+        const syncDelay = 16;
 
-            // Create change listener
-            changeListenerRef.current = () => {
-              if (CameraSync.isEnabled && !CameraSync.isSyncing) {
-                console.log(`${type} camera changed, syncing...`);
-                CameraSync.syncAllFromSource(type);
-              }
-            };
-
-            controls.addEventListener('change', changeListenerRef.current);
-          } else {
-            console.log(`Removing sync for ${type}`);
-            // Unregister from camera sync
-            CameraSync.unregisterViewer(type);
+        const handleChange = () => {
+          const now = Date.now();
+          if (now - lastSyncTime > syncDelay) {
+            lastSyncTime = now;
+            CameraSync.syncFromSource(type);
           }
         };
 
-        setupSync();
+        controls.addEventListener('change', handleChange);
+        controls.addEventListener('start', handleChange);
+        controls.addEventListener('end', handleChange);
 
-        // Animation loop
+        const handleMouseMove = (event) => {
+          if (event.buttons > 0) handleChange();
+        };
+
+        const handleWheel = () => handleChange();
+
+        canvas.addEventListener('mousemove', handleMouseMove);
+        canvas.addEventListener('wheel', handleWheel);
+        canvas.addEventListener('touchmove', handleChange);
+
         const animate = () => {
           animationFrameRef.current = requestAnimationFrame(animate);
           controls.update();
@@ -139,7 +126,6 @@ const ModelViewer = forwardRef(({ scene, type, syncEnabled = false }, ref) => {
         };
         animate();
 
-        // Handle resize
         const handleResize = () => {
           const width = canvas.clientWidth;
           const height = canvas.clientHeight;
@@ -155,11 +141,12 @@ const ModelViewer = forwardRef(({ scene, type, syncEnabled = false }, ref) => {
           if (animationFrameRef.current) {
             cancelAnimationFrame(animationFrameRef.current);
           }
-          // Clean up sync listener
-          if (changeListenerRef.current) {
-            controls.removeEventListener('change', changeListenerRef.current);
-          }
-          // Unregister from camera sync
+          controls.removeEventListener('change', handleChange);
+          controls.removeEventListener('start', handleChange);
+          controls.removeEventListener('end', handleChange);
+          canvas.removeEventListener('mousemove', handleMouseMove);
+          canvas.removeEventListener('wheel', handleWheel);
+          canvas.removeEventListener('touchmove', handleChange);
           CameraSync.unregisterViewer(type);
         };
       } catch (error) {
@@ -167,8 +154,14 @@ const ModelViewer = forwardRef(({ scene, type, syncEnabled = false }, ref) => {
       }
     };
 
-    setupViewer();
-  }, [scene, syncEnabled, type]); // Add syncEnabled as dependency
+    const cleanup = setupViewer();
+
+    return () => {
+      if (cleanup && typeof cleanup.then === 'function') {
+        cleanup.then(fn => fn && fn());
+      }
+    };
+  }, [scene, type]);
 
   return (
     <div className="model-viewer">
@@ -176,22 +169,10 @@ const ModelViewer = forwardRef(({ scene, type, syncEnabled = false }, ref) => {
         <canvas ref={canvasRef} />
         {!scene && (
           <div className="canvas-placeholder">
-            <span>🎮</span>
+            <span role="img" aria-label="controller">🎮</span>
             <p>Upload a model to view</p>
           </div>
         )}
-      </div>
-      <div style={{ 
-        position: 'absolute', 
-        top: '10px', 
-        right: '10px', 
-        background: 'rgba(0,0,0,0.7)', 
-        color: 'white', 
-        padding: '5px', 
-        borderRadius: '3px',
-        fontSize: '12px'
-      }}>
-        {type} - {syncEnabled ? 'Sync ON' : 'Sync OFF'}
       </div>
     </div>
   );
